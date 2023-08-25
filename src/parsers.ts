@@ -1,8 +1,9 @@
-import type { Schema, CodeGenerator } from "./types.js";
+import type { Schema } from "./types.js";
 import { nullPrototype, isObject, isArray, isUnsignedSize, isSchema, stringifyJS } from "./utils.js";
 import { type Path, joinPath, index } from "./path.js";
 import { getTransformer } from "./transformers.js";
 
+export type CodeGenerator = (path: Path) => string;
 export type Parser = (schema: Schema) => CodeGenerator;
 
 const parsers = nullPrototype({

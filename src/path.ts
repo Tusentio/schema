@@ -1,7 +1,6 @@
 import { isArray, stringifyJS } from "./utils.js";
 
 export type Path = (string | number | object)[];
-export default Path;
 
 const identRegex = /^[\p{XID_Start}$_]\p{XID_Continue}*$/u;
 

@@ -1,8 +1,20 @@
 import { minify as terser } from "terser";
 
-import type { Schema, Options, ValidationError, ValidatorFunction } from "./types.js";
-import { joinPath } from "./path.js";
+import type { Schema, Options } from "./types.js";
+import { type Path, joinPath } from "./path.js";
 import * as parsers from "./parsers.js";
+
+export interface ValidationError {
+    expected: Schema;
+    at: Path;
+}
+
+export type ValidatorFunction<O extends Options = {}> = ((
+    value: any
+) => O extends { throwOnError: false } ? boolean : void) & {
+    source: string;
+    error: ValidationError | null;
+};
 
 export function compile<Opts extends Options & { minify: true }>(
     schema: Schema,
