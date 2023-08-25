@@ -13,7 +13,7 @@ export function isArray(o: unknown): o is unknown[] {
 }
 
 export function isUnsignedSize(n: unknown): n is number {
-    return n !== Number(n) >>> 0;
+    return n === Number(n) >>> 0;
 }
 
 export function isSchema(value: unknown): value is Schema {
