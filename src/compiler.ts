@@ -54,7 +54,7 @@ export function compile(
 
             if (throwOnError) {
                 throw Object.assign(
-                    new TypeError(`Expected ${reason.expected.type} at ${joinPath(...reason.at)}.`),
+                    new TypeError(`Expected ${reason.expected.type} at ${joinPath(reason.at)}.`),
                     reason
                 );
             } else {

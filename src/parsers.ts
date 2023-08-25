@@ -8,25 +8,25 @@ export type Parser = (schema: Schema) => CodeGenerator;
 
 const parsers = nullPrototype({
     string(): CodeGenerator {
-        return (path) => `typeof ${joinPath(...path)} === "string"`;
+        return (path) => `typeof ${joinPath(path)} === "string"`;
     },
 
     number(): CodeGenerator {
         return (path) => {
-            const arg = joinPath(...path);
+            const arg = joinPath(path);
             return `${arg} === +${arg}`;
         };
     },
 
     boolean(): CodeGenerator {
         return (path) => {
-            const arg = joinPath(...path);
+            const arg = joinPath(path);
             return `${arg} === !!${arg}`;
         };
     },
 
     null(): CodeGenerator {
-        return (path) => `${joinPath(...path)} == null`;
+        return (path) => `${joinPath(path)} == null`;
     },
 
     const(schema: Schema): CodeGenerator {
@@ -51,7 +51,7 @@ const parsers = nullPrototype({
                 ),
             });
         } else {
-            return (path) => `${joinPath(...path)} === ${stringifyJS(value)}`;
+            return (path) => `${joinPath(path)} === ${stringifyJS(value)}`;
         }
     },
 
@@ -73,9 +73,9 @@ const parsers = nullPrototype({
         });
 
         return (path) => {
-            const arg = joinPath(...path);
+            const arg = joinPath(path);
 
-            const nullCheck = `!(${parsers.null()(path)})`;
+            const nullCheck = `${arg} != null`;
             const typeCheck = `typeof ${arg} === "object"`;
             const keysCheck =
                 keys.length === requiredKeys.length && `Object.keys(${arg}).length === ${stringifyJS(keys.length)}`;
@@ -97,7 +97,7 @@ const parsers = nullPrototype({
                 keys
                     .map((key) => {
                         const field = fields[key] as Schema;
-                        return `(!(${stringifyJS(key)} in ${arg}) || ${parse(field)([...arg, key])})`;
+                        return `(!(${stringifyJS(key)} in ${arg}) || (${parse(field)([...path, key])}))`;
                     })
                     .join(" && ");
 
@@ -127,7 +127,7 @@ const parsers = nullPrototype({
         }
 
         return (path) => {
-            const arg = joinPath(...path);
+            const arg = joinPath(path);
 
             const nullCheck = `!(${parsers.null()(path)})`;
             const typeCheck = `typeof ${arg} === "object"`;
@@ -152,7 +152,7 @@ const parsers = nullPrototype({
         }
 
         return (path) => {
-            const arg = joinPath(...path);
+            const arg = joinPath(path);
 
             const nullCheck = `!(${parsers.null()(path)})`;
             const typeCheck = `typeof ${arg} === "object"`;

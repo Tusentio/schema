@@ -32,13 +32,13 @@ export function index(i: Path | {}): Path | object {
     }
 }
 
-export function joinPath(...parts: Path) {
+export function joinPath([...parts]: Path) {
     if (parts.length === 0) throw new TypeError("Invalid path.");
     let path = "";
 
     const part = parts.shift()!;
     if (typeof part === "object") {
-        path += joinPath(...index(part));
+        path += joinPath(index(part));
     } else if (isIdent(part)) {
         path += `${part}`;
     } else {
@@ -47,7 +47,7 @@ export function joinPath(...parts: Path) {
 
     for (const part of parts) {
         if (typeof part === "object") {
-            path += `[${joinPath(...index(part))}]`;
+            path += `[${joinPath(index(part))}]`;
         } else {
             path += isIdent(part) ? `.${part}` : `[${stringifyJS(part)}]`;
         }
