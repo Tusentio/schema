@@ -11,22 +11,42 @@ const parsers = nullPrototype({
         return (path) => `typeof ${joinPath(path)} === "string"`;
     },
 
-    number(): CodeGenerator {
+    number(schema: Schema): CodeGenerator {
+        const { allowNaN = false } = schema;
+
         return (path) => {
             const arg = joinPath(path);
-            return `${arg} === +${arg}`;
+
+            const typeCheck = `typeof ${arg} === "number"`;
+            const nanCheck = !allowNaN && `!isNaN(${arg})`;
+
+            return [typeCheck, nanCheck].filter(Boolean).join(" && ");
+        };
+    },
+
+    integer(schema: Schema): CodeGenerator {
+        const { allowNaN = false } = schema;
+
+        return (path) => {
+            const arg = joinPath(path);
+
+            const typeCheck = `typeof ${arg} === "number"`;
+            const nanCheck = !allowNaN && `!isNaN(${arg})`;
+            const integerCheck = `${arg} === (${arg} | 0)`;
+
+            return [typeCheck, nanCheck, integerCheck].filter(Boolean).join(" && ");
         };
     },
 
     boolean(): CodeGenerator {
         return (path) => {
             const arg = joinPath(path);
-            return `${arg} === !!${arg}`;
+            return `${arg} === true || ${arg} === false`;
         };
     },
 
-    null(): CodeGenerator {
-        return (path) => `${joinPath(path)} == null`;
+    any(): CodeGenerator {
+        return () => "true";
     },
 
     const(schema: Schema): CodeGenerator {
@@ -36,18 +56,11 @@ const parsers = nullPrototype({
             throw new TypeError("Missing const value.");
         }
 
-        if (value != null && typeof value === "object") {
+        if (isObject(value)) {
             return parsers.object({
                 type: "object",
                 fields: Object.fromEntries(
-                    Object.entries(value).map(([key, value]) => [
-                        key,
-                        {
-                            type: "const",
-                            required: true,
-                            value,
-                        },
-                    ])
+                    Object.entries(value).map(([key, value]) => [key, { type: "const", value }])
                 ),
             });
         } else {
@@ -56,7 +69,7 @@ const parsers = nullPrototype({
     },
 
     object(schema: Schema): CodeGenerator {
-        const { fields } = schema;
+        const { fields = {}, strict = true } = schema;
         if (!isObject(fields)) throw new TypeError("Invalid object fields.");
 
         for (const key in fields) {
@@ -75,15 +88,20 @@ const parsers = nullPrototype({
         return (path) => {
             const arg = joinPath(path);
 
-            const nullCheck = `${arg} != null`;
-            const typeCheck = `typeof ${arg} === "object"`;
+            const typeCheck = `${arg} != null && typeof ${arg} === "object"`;
+
             const keysCheck =
-                keys.length === requiredKeys.length && `Object.keys(${arg}).length === ${stringifyJS(keys.length)}`;
-            const maxKeysCheck = !keysCheck && `Object.keys(${arg}).length <= ${stringifyJS(keys.length)}`;
+                keys.length === requiredKeys.length &&
+                strict &&
+                `Object.keys(${arg}).length === ${stringifyJS(keys.length)}`;
+
+            const maxKeysCheck = strict && !keysCheck && `Object.keys(${arg}).length <= ${stringifyJS(keys.length)}`;
+
             const minKeysCheck =
                 !keysCheck &&
                 requiredKeys.length &&
                 `Object.keys(${arg}).length >= ${stringifyJS(requiredKeys.length)}`;
+
             const requiredFieldsCheck =
                 requiredKeys.length && requiredKeys.map((key) => `${stringifyJS(key)} in ${arg}`).join(" && ");
 
@@ -101,16 +119,7 @@ const parsers = nullPrototype({
                     })
                     .join(" && ");
 
-            return [
-                nullCheck,
-                typeCheck,
-                keysCheck,
-                maxKeysCheck,
-                minKeysCheck,
-                requiredFieldsCheck,
-                extraFieldsCheck,
-                valueCheck,
-            ]
+            return [typeCheck, keysCheck, maxKeysCheck, minKeysCheck, requiredFieldsCheck, extraFieldsCheck, valueCheck]
                 .filter(Boolean)
                 .join(" && ");
         };
@@ -129,19 +138,18 @@ const parsers = nullPrototype({
         return (path) => {
             const arg = joinPath(path);
 
-            const nullCheck = `!(${parsers.null()(path)})`;
-            const typeCheck = `typeof ${arg} === "object"`;
+            const typeCheck = `${arg} != null && typeof ${arg} === "object"`;
             const lengthCheck = `${arg}.length === ${stringifyJS(items.length)}`;
             const arrayCheck = `Array.isArray(${arg})`;
 
             const valueCheck = items.length && items.map((item, i) => parse(item)([...path, i])).join(" && ");
 
-            return [nullCheck, typeCheck, lengthCheck, arrayCheck, valueCheck].filter(Boolean).join(" && ");
+            return [typeCheck, lengthCheck, arrayCheck, valueCheck].filter(Boolean).join(" && ");
         };
     },
 
     array(schema: Schema): CodeGenerator {
-        const { item, length } = schema;
+        const { item, length, maxLength } = schema;
 
         if (!isSchema(item)) {
             throw new TypeError(`Invalid item schema: ${stringifyJS(item)}.`);
@@ -151,16 +159,24 @@ const parsers = nullPrototype({
             throw new TypeError(`Invalid array length: ${stringifyJS(length)}.`);
         }
 
+        if (maxLength != null && !isUnsignedSize(maxLength)) {
+            throw new TypeError(`Invalid array maxLength: ${stringifyJS(maxLength)}.`);
+        }
+
+        if (length != null && maxLength != null) {
+            throw new TypeError("Array length and maxLength cannot be used together.");
+        }
+
         return (path) => {
             const arg = joinPath(path);
 
-            const nullCheck = `!(${parsers.null()(path)})`;
-            const typeCheck = `typeof ${arg} === "object"`;
+            const typeCheck = `${arg} != null && typeof ${arg} === "object"`;
             const lengthCheck = length != null && `${arg}.length === ${stringifyJS(length)}`;
+            const maxLengthCheck = maxLength != null && `${arg}.length <= ${stringifyJS(maxLength)}`;
             const arrayCheck = `Array.isArray(${arg})`;
             const valueCheck = length && `${arg}.every((_, i) => ${parse(item)([...path, index(["i"])])})`;
 
-            return [nullCheck, typeCheck, lengthCheck, arrayCheck, valueCheck].filter(Boolean).join(" && ");
+            return [typeCheck, lengthCheck, maxLengthCheck, arrayCheck, valueCheck].filter(Boolean).join(" && ");
         };
     },
 });

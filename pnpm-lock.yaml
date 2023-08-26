@@ -10,6 +10,9 @@ dependencies:
     version: 5.19.2
 
 devDependencies:
+  '@total-typescript/ts-reset':
+    specifier: ^0.5.1
+    version: 0.5.1
   rimraf:
     specifier: ^5.0.1
     version: 5.0.1
@@ -74,6 +77,10 @@ packages:
     requiresBuild: true
     dev: true
     optional: true
+
+  /@total-typescript/ts-reset@0.5.1:
+    resolution: {integrity: sha512-AqlrT8YA1o7Ff5wPfMOL0pvL+1X+sw60NN6CcOCqs658emD6RfiXhF7Gu9QcfKBH7ELY2nInLhKSCWVoNL70MQ==}
+    dev: true
 
   /acorn@8.10.0:
     resolution: {integrity: sha512-F0SAmZ8iUtS//m8DmCTA0jlh6TDKkHQyK6xc6V4KDTyZKA9dnvX9/3sRTVQrWm79glUAZbnmmNcdYwUIHWVybw==}
