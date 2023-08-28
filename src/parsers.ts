@@ -205,6 +205,7 @@ const parsers = nullPrototype({
 
 function resolve(schema: Schema): Parser | undefined {
     let transformed = structuredClone(schema);
+    delete schema.__resolved;
 
     for (let i = 0; i < 0x100; i++) {
         const type = transformed.type.replace(/::.*/s, "");
@@ -228,12 +229,15 @@ export function parse(schema: unknown): CodeGenerator {
     const parser = resolve(schema);
     if (parser == null) throw new TypeError(`Invalid schema type: ${stringify(schema.type)}.`);
 
-    return (path: Path) =>
-        `(${parser(schema as Schema)(path)} || croak(${stringify({
+    return (path: Path) => {
+        if (!isSchema(schema)) throw new TypeError(`Invalid schema: ${stringify(schema)}.`);
+
+        return `(${parser((schema.__resolved ?? schema) as Schema)(path)} || croak(${stringify({
             expected: schema,
             at: path.slice(1),
             got: $$$_this_might_cause_remote_code_execution_$$$(joinPath(path)),
         })}))`;
+    };
 }
 
 export function getParserNames(): string[] {
