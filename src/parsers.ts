@@ -1,6 +1,7 @@
 import type { Schema } from "./types.js";
-import { nullPrototype, isObject, isArray, isUnsignedSize, isSchema, stringifyJS } from "./utils.js";
+import { isObject, isUnsignedSize, isSchema, nullPrototype, cloneCall } from "./utils.js";
 import { type Path, joinPath, index } from "./path.js";
+import { stringify, $$$_this_might_cause_remote_code_execution_$$$ } from "./stringify.js";
 import { getTransformer } from "./transformers.js";
 
 export type CodeGenerator = (path: Path) => string;
@@ -45,6 +46,10 @@ const parsers = nullPrototype({
         };
     },
 
+    null(): CodeGenerator {
+        return (path) => `${joinPath(path)} == null`;
+    },
+
     any(): CodeGenerator {
         return () => "true";
     },
@@ -64,17 +69,36 @@ const parsers = nullPrototype({
                 ),
             });
         } else {
-            return (path) => `${joinPath(path)} === ${stringifyJS(value)}`;
+            return (path) => `${joinPath(path)} === ${stringify(value)}`;
         }
+    },
+
+    union(schema: Schema): CodeGenerator {
+        const { variants } = schema;
+
+        if (!Array.isArray(variants)) {
+            throw new TypeError("Invalid union variants.");
+        }
+
+        if (variants.length === 0) {
+            throw new TypeError("A union must have at least one variant.");
+        }
+
+        return (path) => {
+            return variants.map((variant) => parse(variant)(path)).join(" || ");
+        };
     },
 
     object(schema: Schema): CodeGenerator {
         const { fields = {}, strict = true } = schema;
-        if (!isObject(fields)) throw new TypeError("Invalid object fields.");
+
+        if (!isObject(fields)) {
+            throw new TypeError("Invalid object fields.");
+        }
 
         for (const key in fields) {
             if (!isSchema(fields[key])) {
-                throw new TypeError(`Invalid field schema: ${stringifyJS(fields[key])}.`);
+                throw new TypeError(`Invalid field schema: ${stringify(fields[key])}.`);
             }
         }
 
@@ -93,29 +117,27 @@ const parsers = nullPrototype({
             const keysCheck =
                 keys.length === requiredKeys.length &&
                 strict &&
-                `Object.keys(${arg}).length === ${stringifyJS(keys.length)}`;
+                `Object.keys(${arg}).length === ${stringify(keys.length)}`;
 
-            const maxKeysCheck = strict && !keysCheck && `Object.keys(${arg}).length <= ${stringifyJS(keys.length)}`;
+            const maxKeysCheck = strict && !keysCheck && `Object.keys(${arg}).length <= ${stringify(keys.length)}`;
 
             const minKeysCheck =
-                !keysCheck &&
-                requiredKeys.length &&
-                `Object.keys(${arg}).length >= ${stringifyJS(requiredKeys.length)}`;
+                !keysCheck && requiredKeys.length && `Object.keys(${arg}).length >= ${stringify(requiredKeys.length)}`;
 
             const requiredFieldsCheck =
-                requiredKeys.length && requiredKeys.map((key) => `${stringifyJS(key)} in ${arg}`).join(" && ");
+                requiredKeys.length && requiredKeys.map((key) => `${stringify(key)} in ${arg}`).join(" && ");
 
             const extraFieldsCheck =
                 keys.length &&
                 !keysCheck &&
-                `Object.keys(${arg}).every((key) => ${keys.map((key) => `key === ${stringifyJS(key)}`).join(" || ")})`;
+                `Object.keys(${arg}).every((key) => ${keys.map((key) => `key === ${stringify(key)}`).join(" || ")})`;
 
             const valueCheck =
                 keys.length &&
                 keys
                     .map((key) => {
                         const field = fields[key] as Schema;
-                        return `(!(${stringifyJS(key)} in ${arg}) || (${parse(field)([...path, key])}))`;
+                        return `(!(${stringify(key)} in ${arg}) || (${parse(field)([...path, key])}))`;
                     })
                     .join(" && ");
 
@@ -127,11 +149,11 @@ const parsers = nullPrototype({
 
     tuple(schema: Schema): CodeGenerator {
         const { items } = schema;
-        if (!isArray(items)) throw new TypeError("Invalid tuple items.");
+        if (!Array.isArray(items)) throw new TypeError("Invalid tuple items.");
 
         for (const item of items) {
             if (!isSchema(item)) {
-                new TypeError(`Invalid item schema: ${stringifyJS(schema)}.`);
+                new TypeError(`Invalid item schema: ${stringify(schema)}.`);
             }
         }
 
@@ -139,7 +161,7 @@ const parsers = nullPrototype({
             const arg = joinPath(path);
 
             const typeCheck = `${arg} != null && typeof ${arg} === "object"`;
-            const lengthCheck = `${arg}.length === ${stringifyJS(items.length)}`;
+            const lengthCheck = `${arg}.length === ${stringify(items.length)}`;
             const arrayCheck = `Array.isArray(${arg})`;
 
             const valueCheck = items.length && items.map((item, i) => parse(item)([...path, i])).join(" && ");
@@ -152,15 +174,15 @@ const parsers = nullPrototype({
         const { item, length, maxLength } = schema;
 
         if (!isSchema(item)) {
-            throw new TypeError(`Invalid item schema: ${stringifyJS(item)}.`);
+            throw new TypeError(`Invalid item schema: ${stringify(item)}.`);
         }
 
         if (length != null && !isUnsignedSize(length)) {
-            throw new TypeError(`Invalid array length: ${stringifyJS(length)}.`);
+            throw new TypeError(`Invalid array length: ${stringify(length)}.`);
         }
 
         if (maxLength != null && !isUnsignedSize(maxLength)) {
-            throw new TypeError(`Invalid array maxLength: ${stringifyJS(maxLength)}.`);
+            throw new TypeError(`Invalid array maxLength: ${stringify(maxLength)}.`);
         }
 
         if (length != null && maxLength != null) {
@@ -171,8 +193,8 @@ const parsers = nullPrototype({
             const arg = joinPath(path);
 
             const typeCheck = `${arg} != null && typeof ${arg} === "object"`;
-            const lengthCheck = length != null && `${arg}.length === ${stringifyJS(length)}`;
-            const maxLengthCheck = maxLength != null && `${arg}.length <= ${stringifyJS(maxLength)}`;
+            const lengthCheck = length != null && `${arg}.length === ${stringify(length)}`;
+            const maxLengthCheck = maxLength != null && `${arg}.length <= ${stringify(maxLength)}`;
             const arrayCheck = `Array.isArray(${arg})`;
             const valueCheck = length && `${arg}.every((_, i) => ${parse(item)([...path, index(["i"])])})`;
 
@@ -181,25 +203,19 @@ const parsers = nullPrototype({
     },
 });
 
-function wipe(o: Record<any, unknown>) {
-    Object.setPrototypeOf(o, Object.prototype);
-    for (const key in o) delete o[key];
-}
-
 function resolve(schema: Schema): Parser | undefined {
+    let transformed = structuredClone(schema);
+
     for (let i = 0; i < 0x100; i++) {
-        const type = schema.type.replace(/::.*/s, "");
+        const type = transformed.type.replace(/::.*/s, "");
         const parser = getParser(type);
         if (parser) return parser;
 
         const transformer = getTransformer(type);
         if (!transformer) return undefined;
 
-        const old = structuredClone(schema);
-        wipe(schema);
-
-        const transformed = structuredClone(transformer(old));
-        Object.assign(schema, transformed);
+        transformed = cloneCall(transformer, transformed);
+        schema.__resolved = transformed;
     }
 
     throw new TypeError("Too many schema transformations.");
@@ -207,15 +223,16 @@ function resolve(schema: Schema): Parser | undefined {
 
 export function parse(schema: unknown): CodeGenerator {
     schema = structuredClone(schema);
-    if (!isSchema(schema)) throw new TypeError(`Invalid schema: ${stringifyJS(schema)}.`);
+    if (!isSchema(schema)) throw new TypeError(`Invalid schema: ${stringify(schema)}.`);
 
     const parser = resolve(schema);
-    if (parser == null) throw new TypeError(`Invalid schema type: ${stringifyJS(schema.type)}.`);
+    if (parser == null) throw new TypeError(`Invalid schema type: ${stringify(schema.type)}.`);
 
     return (path: Path) =>
-        `(${parser(schema as Schema)(path)} || croak(${stringifyJS({
+        `(${parser(schema as Schema)(path)} || croak(${stringify({
             expected: schema,
             at: path.slice(1),
+            got: $$$_this_might_cause_remote_code_execution_$$$(joinPath(path)),
         })}))`;
 }
 

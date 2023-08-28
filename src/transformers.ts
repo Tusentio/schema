@@ -3,12 +3,31 @@ import { nullPrototype } from "./utils.js";
 
 export type Transformer = (schema: Schema) => Schema;
 
-const transformers = nullPrototype({});
+const transformers = nullPrototype({
+    enum(schema: Schema): Schema {
+        const { variants } = schema;
+
+        if (!Array.isArray(variants)) {
+            throw new TypeError("Invalid enum variants.");
+        }
+
+        if (variants.length === 0) {
+            throw new TypeError("An enum must have at least one variant.");
+        }
+
+        return {
+            type: "union",
+            variants: variants.map((variant) => ({ type: "const", value: variant })),
+        };
+    },
+});
 
 export function getTransformerNames(): string[] {
     return Object.keys(transformers);
 }
 
+export function getTransformer(name: keyof typeof transformers): Transformer;
+export function getTransformer(name: string): Transformer | undefined;
 export function getTransformer(name: string): Transformer | undefined {
     return (transformers as Record<string, Transformer | undefined>)[name];
 }

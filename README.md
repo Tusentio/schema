@@ -8,10 +8,13 @@
     - [`number`](#number)
     - [`integer`](#integer)
     - [`boolean`](#boolean)
+    - [`null`](#null)
     - [`object`](#object)
     - [`array`](#array)
     - [`tuple`](#tuple)
     - [`const`](#const)
+    - [`enum`](#enum)
+    - [`union`](#union)
     - [`any`](#any)
 
 ---
@@ -61,6 +64,16 @@ Matches strictly `true` or `false`.
 
 ```json
 { "type": "boolean" }
+```
+
+### `null`
+
+Matches either `null` or `undefined`.
+
+**Example:**
+
+```json
+{ "type": "null" }
 ```
 
 ### `object`
@@ -122,6 +135,30 @@ Matches a specific value. Supports deep equality checks for objects and arrays.
 {
     "type": "const",
     "value": 42
+}
+```
+
+### `enum`
+
+Matches a specific set of values.
+
+- `variants: any[]` - An array of values to match against. Each variant is matched like a [`const`](#const) schema. (Must have at least one item.)
+
+### `union`
+
+Matches any of the given schemas.
+
+- `variants: Schema[]` - An array of schemas to match against. (Must have at least one item.)
+
+**Example:**
+
+```json
+{
+    "type": "union",
+    "variants": [
+        { "type": "string" },
+        { "type": "number" }
+    ]
 }
 ```
 

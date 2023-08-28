@@ -1,28 +1,14 @@
-import { isArray, stringifyJS } from "./utils.js";
+import { isIdent } from "./utils.js";
+import { stringify } from "./stringify.js";
 
 export type Path = (string | number | object)[];
-
-const identRegex = /^[\p{XID_Start}$_]\p{XID_Continue}*$/u;
-
-function isIdent(name: string | number) {
-    if (typeof name === "number") return false;
-    if (!identRegex.test(name)) return false;
-
-    try {
-        new Function(name, "");
-    } catch {
-        return false;
-    }
-
-    return true;
-}
 
 const indices = new WeakMap<{}, Path>();
 
 export function index(i: Path): object;
 export function index(i: {}): Path;
 export function index(i: Path | {}): Path | object {
-    if (isArray(i)) {
+    if (Array.isArray(i)) {
         const o = {};
         indices.set(o, i as Path);
         return o;
@@ -49,7 +35,7 @@ export function joinPath([...parts]: Path) {
         if (typeof part === "object") {
             path += `[${joinPath(index(part))}]`;
         } else {
-            path += isIdent(part) ? `.${part}` : `[${stringifyJS(part)}]`;
+            path += isIdent(part) ? `.${part}` : `[${stringify(part)}]`;
         }
     }
 
