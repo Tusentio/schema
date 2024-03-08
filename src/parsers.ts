@@ -85,7 +85,7 @@ const parsers = nullPrototype({
         }
 
         return (path) => {
-            return variants.map((variant) => parse(variant)(path)).join(" || ");
+            return variants.map((variant) => parse(variant, false)(path)).join(" || ");
         };
     },
 
@@ -222,7 +222,7 @@ function resolve(schema: Schema): Parser | undefined {
     throw new TypeError("Too many schema transformations.");
 }
 
-export function parse(schema: unknown): CodeGenerator {
+export function parse(schema: unknown, croak?: boolean): CodeGenerator {
     schema = structuredClone(schema);
     if (!isSchema(schema)) throw new TypeError(`Invalid schema: ${stringify(schema)}.`);
 
@@ -232,11 +232,15 @@ export function parse(schema: unknown): CodeGenerator {
     return (path: Path) => {
         if (!isSchema(schema)) throw new TypeError(`Invalid schema: ${stringify(schema)}.`);
 
-        return `(${parser((schema.__resolved ?? schema) as Schema)(path)} || croak(${stringify({
-            expected: schema,
-            at: path.slice(1),
-            got: $$$_this_might_cause_remote_code_execution_$$$(joinPath(path)),
-        })}))`;
+        if (croak) {
+            return `(${parser((schema.__resolved ?? schema) as Schema)(path)} || croak(${stringify({
+                expected: schema,
+                at: path.slice(1),
+                got: $$$_this_might_cause_remote_code_execution_$$$(joinPath(path)),
+            })}))`;
+        } else {
+            return parser((schema.__resolved ?? schema) as Schema)(path);
+        }
     };
 }
 
