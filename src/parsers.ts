@@ -232,14 +232,14 @@ export function parse(schema: unknown, croak?: boolean): CodeGenerator {
     return (path: Path) => {
         if (!isSchema(schema)) throw new TypeError(`Invalid schema: ${stringify(schema)}.`);
 
-        if (croak) {
+        if (croak !== false) {
             return `(${parser((schema.__resolved ?? schema) as Schema)(path)} || croak(${stringify({
                 expected: schema,
                 at: path.slice(1),
                 got: $$$_this_might_cause_remote_code_execution_$$$(joinPath(path)),
             })}))`;
         } else {
-            return parser((schema.__resolved ?? schema) as Schema)(path);
+            return `(${parser((schema.__resolved ?? schema) as Schema)(path)})`;
         }
     };
 }
