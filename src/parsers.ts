@@ -7,6 +7,8 @@ import { getTransformer } from "./transformers.js";
 export type CodeGenerator = (path: Path) => string;
 export type Parser = (schema: Schema) => CodeGenerator;
 
+let globalSuppressCroaks = 0;
+
 const parsers = nullPrototype({
     string(): CodeGenerator {
         return (path) => `typeof ${joinPath(path)} === "string"`;
@@ -223,6 +225,17 @@ function resolve(schema: Schema): Parser | undefined {
 }
 
 export function parse(schema: unknown, croak?: boolean): CodeGenerator {
+    if (croak === false) {
+        try {
+            globalSuppressCroaks += 1;
+            return parse(schema);
+        } finally {
+            globalSuppressCroaks -= 1;
+        }
+    }
+
+    const suppressCroaks = globalSuppressCroaks;
+
     schema = structuredClone(schema);
     if (!isSchema(schema)) throw new TypeError(`Invalid schema: ${stringify(schema)}.`);
 
@@ -232,14 +245,20 @@ export function parse(schema: unknown, croak?: boolean): CodeGenerator {
     return (path: Path) => {
         if (!isSchema(schema)) throw new TypeError(`Invalid schema: ${stringify(schema)}.`);
 
-        if (croak !== false) {
-            return `(${parser((schema.__resolved ?? schema) as Schema)(path)} || croak(${stringify({
-                expected: schema,
-                at: path.slice(1),
-                got: $$$_this_might_cause_remote_code_execution_$$$(joinPath(path)),
-            })}))`;
-        } else {
-            return `(${parser((schema.__resolved ?? schema) as Schema)(path)})`;
+        try {
+            globalSuppressCroaks += suppressCroaks;
+
+            if (globalSuppressCroaks) {
+                return `(${parser((schema.__resolved ?? schema) as Schema)(path)})`;
+            } else {
+                return `(${parser((schema.__resolved ?? schema) as Schema)(path)} || croak(${stringify({
+                    expected: schema,
+                    at: path.slice(1),
+                    got: $$$_this_might_cause_remote_code_execution_$$$(joinPath(path)),
+                })}))`;
+            }
+        } finally {
+            globalSuppressCroaks -= suppressCroaks;
         }
     };
 }
