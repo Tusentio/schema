@@ -1,8 +1,8 @@
 import { minify as terser } from "terser";
 
-import type { Schema, Options } from "./types.js";
-import { type Path, joinPath } from "./path.js";
 import * as parsers from "./parsers.js";
+import { joinPath, type Path } from "./path.js";
+import type { Options, Schema } from "./types.js";
 
 export interface ValidationError {
     expected: Schema;
@@ -54,7 +54,7 @@ export function compile(
 
             if (throwOnError) {
                 throw Object.assign(
-                    new TypeError(`Expected ${reason.expected.type} at ${joinPath(reason.at)}.`),
+                    new TypeError(`Expected ${reason.expected.type} at ${joinPath(["root", ...reason.at])}.`),
                     reason
                 );
             } else {
