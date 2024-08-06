@@ -26,22 +26,25 @@ export type PredicateValidator<T = unknown> = ((value: unknown) => value is T) &
 
 export type Validator<T = unknown> = PredicateValidator<T> | AssertionValidator<T>;
 
-export function compile<const S extends SchemaLike>(
+export function compile<const S extends Schema | SchemaLike>(
     schema: S,
     options: CompileOptions & { minify: true; throwOnError: true },
 ): Promise<AssertionValidator<TypeOf<S>>>;
 
-export function compile<const S extends SchemaLike>(
+export function compile<const S extends Schema | SchemaLike>(
     schema: S,
     options: CompileOptions & { minify: true },
 ): Promise<PredicateValidator<TypeOf<S>>>;
 
-export function compile<const S extends SchemaLike>(
+export function compile<const S extends Schema | SchemaLike>(
     schema: S,
     options: CompileOptions & { throwOnError: true },
 ): AssertionValidator<TypeOf<S>>;
 
-export function compile<const S extends SchemaLike>(schema: S, options: CompileOptions): PredicateValidator<TypeOf<S>>;
+export function compile<const S extends Schema | SchemaLike>(
+    schema: S,
+    options: CompileOptions,
+): PredicateValidator<TypeOf<S>>;
 
 export function compile<const S extends Schema | SchemaLike>(schema: S): PredicateValidator<TypeOf<S>>;
 

@@ -32,7 +32,7 @@ export function isObject(value: unknown): value is object {
     return value != null && typeof value === "object";
 }
 
-export function isRecord(value: unknown): value is PartialRecord<PropertyKey, unknown> {
+export function isRecord(value: unknown): value is Record<PropertyKey, unknown> {
     return value != null && typeof value === "object";
 }
 

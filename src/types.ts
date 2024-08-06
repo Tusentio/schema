@@ -1,53 +1,55 @@
-export interface SchemaBase<Type extends string> {
+/* eslint-disable @typescript-eslint/consistent-type-definitions */
+
+type SchemaBase<Type extends string> = {
     type: Type & {};
-}
+};
 
-interface StringSchema extends SchemaBase<"string"> {}
+type StringSchema = SchemaBase<"string">;
 
-interface NumberSchema extends SchemaBase<"number"> {
+type NumberSchema = SchemaBase<"number"> & {
     allowNaN?: boolean;
     finite?: boolean;
-}
+};
 
-interface IntegerSchema extends SchemaBase<"integer"> {
+type IntegerSchema = SchemaBase<"integer"> & {
     allowNaN?: boolean;
-}
+};
 
-interface BooleanSchema extends SchemaBase<"boolean"> {}
+type BooleanSchema = SchemaBase<"boolean">;
 
-interface NullSchema extends SchemaBase<"null"> {}
+type NullSchema = SchemaBase<"null">;
 
-interface AnySchema extends SchemaBase<"any"> {}
+type AnySchema = SchemaBase<"any">;
 
-interface ConstSchema extends SchemaBase<"const"> {
+type ConstSchema = SchemaBase<"const"> & {
     value: unknown;
-}
+};
 
-interface UnionSchema extends SchemaBase<"union"> {
+type UnionSchema = SchemaBase<"union"> & {
     variants: (Schema | SchemaLike)[];
-}
+};
 
 type ObjectField = (Schema | SchemaLike) & { required?: boolean };
 
-interface ObjectSchema extends SchemaBase<"object"> {
+type ObjectSchema = SchemaBase<"object"> & {
     fields: Record<string, ObjectField>;
     strict?: boolean;
-}
+};
 
-interface TupleSchema extends SchemaBase<"tuple"> {
+type TupleSchema = SchemaBase<"tuple"> & {
     items: (Schema | SchemaLike)[];
-}
+};
 
-interface ArraySchema extends SchemaBase<"array"> {
+type ArraySchema = SchemaBase<"array"> & {
     item: Schema | SchemaLike;
     length?: number;
     minLength?: number;
     maxLength?: number;
-}
+};
 
-interface EnumSchema extends SchemaBase<"enum"> {
+type EnumSchema = SchemaBase<"enum"> & {
     variants: unknown[];
-}
+};
 
 export type Schema<Type extends string = string> = SchemaBase<Type> &
     (
@@ -65,8 +67,8 @@ export type Schema<Type extends string = string> = SchemaBase<Type> &
         | EnumSchema
     );
 
-export type SchemaLike = SchemaBase<string> & Partial<Record<string, unknown>>;
+export type SchemaLike = SchemaBase<string> & Record<string, unknown>;
 
 export type SchemaType = Schema["type"];
 
-export type TypeOf<S extends Schema | SchemaLike> = S extends Schema ? import("./typeof.js").TypeOf<S, []> : unknown;
+export type TypeOf<S extends SchemaLike> = S extends Schema ? import("./typeof.js").TypeOf<S, []> : unknown;
