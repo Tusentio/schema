@@ -1,20 +1,23 @@
-import { isIdent } from "./utils.js";
 import { stringify } from "./stringify.js";
+import { isIdent, isObject } from "./utils.js";
 
 export type Path = (string | number | object)[];
 
-const indices = new WeakMap<{}, Path>();
+const indices = new WeakMap<object, Path>();
 
-export function index(i: Path): object;
-export function index(i: {}): Path;
-export function index(i: Path | {}): Path | object {
-    if (Array.isArray(i)) {
-        const o = {};
-        indices.set(o, i as Path);
-        return o;
+export function index(index: Path): object;
+export function index(index: object): Path;
+export function index(index: Path | object): object {
+    if (Array.isArray(index)) {
+        const key = {};
+        indices.set(key, index as Path);
+        return key;
     } else {
-        if (!indices.has(i)) throw new TypeError("Invalid index.");
-        return indices.get(i)!;
+        if (!indices.has(index)) {
+            throw new TypeError("Invalid index.");
+        }
+
+        return indices.get(index)!;
     }
 }
 
@@ -23,16 +26,16 @@ export function joinPath([...parts]: Path) {
     let path = "";
 
     const part = parts.shift()!;
-    if (typeof part === "object") {
+    if (isObject(part)) {
         path += joinPath(index(part));
     } else if (isIdent(part)) {
-        path += `${part}`;
+        path += part.toString();
     } else {
         throw new TypeError("Invalid path.");
     }
 
     for (const part of parts) {
-        if (typeof part === "object") {
+        if (isObject(part)) {
             path += `[${joinPath(index(part))}]`;
         } else {
             path += isIdent(part) ? `.${part}` : `[${stringify(part)}]`;

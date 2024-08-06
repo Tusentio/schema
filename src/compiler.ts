@@ -1,34 +1,55 @@
 import { minify as terser } from "terser";
 
+import type { TypeOf } from "./index.js";
 import * as parsers from "./parsers.js";
 import { joinPath, type Path } from "./path.js";
-import type { Options, Schema } from "./types.js";
+import type { SchemaLike } from "./types.js";
+import type { MaybePromise } from "./utils.js";
+
+export interface CompileOptions {
+    minify?: boolean;
+    throwOnError?: boolean;
+}
 
 export interface ValidationError {
-    expected: Schema;
+    expected: Readonly<SchemaLike>;
     at: Path;
 }
 
-export type ValidatorFunction<O extends Options = {}> = ((
-    value: any
-) => O extends { throwOnError: false } ? boolean : void) & {
+export interface ValidatorProperties {
     source: string;
     error: ValidationError | null;
-};
+}
 
-export function compile<Opts extends Options & { minify: true }>(
-    schema: Schema,
-    options: Opts
-): Promise<ValidatorFunction<Opts>>;
+export type AssertionValidator<T = unknown> = ((value: unknown) => asserts value is T) & ValidatorProperties;
 
-export function compile<Opts extends Options>(schema: Schema, options: Opts): ValidatorFunction<Opts>;
+export type PredicateValidator<T = unknown> = ((value: unknown) => value is T) & ValidatorProperties;
 
-export function compile(schema: Schema): ValidatorFunction;
+export type Validator<T = unknown> = PredicateValidator<T> | AssertionValidator<T>;
 
-export function compile(
-    schema: Schema,
-    options: Options = {}
-): ValidatorFunction | Promise<ValidatorFunction<typeof options>> {
+export function compile<const Schema extends SchemaLike>(
+    schema: Readonly<Schema>,
+    options: CompileOptions & { minify: true; throwOnError: true },
+): Promise<AssertionValidator<TypeOf<Schema>>>;
+
+export function compile<const Schema extends SchemaLike>(
+    schema: Readonly<Schema>,
+    options: CompileOptions & { minify: true },
+): Promise<PredicateValidator<TypeOf<Schema>>>;
+
+export function compile<const Schema extends SchemaLike>(
+    schema: Readonly<Schema>,
+    options: CompileOptions & { throwOnError: true },
+): AssertionValidator<TypeOf<Schema>>;
+
+export function compile<const Schema extends SchemaLike>(
+    schema: Readonly<Schema>,
+    options: CompileOptions,
+): PredicateValidator<TypeOf<Schema>>;
+
+export function compile<const Schema extends SchemaLike>(schema: Readonly<Schema>): PredicateValidator<TypeOf<Schema>>;
+
+export function compile(schema: Readonly<SchemaLike>, options: CompileOptions = {}): MaybePromise<Validator> {
     const { minify = false, throwOnError = false } = options;
 
     const source = throwOnError
@@ -36,29 +57,31 @@ export function compile(
         : `(root, croak) => ${parsers.parse(schema)(["root"])};`;
 
     const pack = (source: string) => {
-        const fn = eval(source);
+        const fn = eval(source) as (value: unknown, croak: (reason: ValidationError) => boolean) => boolean;
 
         const validate = Object.assign(
-            (value: any) => {
+            (value: unknown) => {
                 validate.error = null;
                 return fn(value, croak);
             },
             {
                 source,
                 error: null as ValidationError | null,
-            }
+            },
         );
 
         const croak = (reason: ValidationError) => {
-            if (validate.error != null) return false;
+            if (validate.error != null) {
+                return false;
+            }
+
+            validate.error = reason;
 
             if (throwOnError) {
-                throw Object.assign(
-                    new TypeError(`Expected ${reason.expected.type} at ${joinPath(["root", ...reason.at])}.`),
-                    reason
-                );
+                throw new TypeError(`Expected ${reason.expected.type} at ${joinPath(["root", ...reason.at])}.`, {
+                    cause: reason,
+                });
             } else {
-                validate.error = reason;
                 return false;
             }
         };
@@ -67,9 +90,7 @@ export function compile(
     };
 
     if (minify) {
-        return terser(source, {
-            compress: { expression: true },
-        })
+        return terser(source, { compress: { expression: true } })
             .then((result) => result.code!)
             .then(pack);
     } else {

@@ -1,4 +1,16 @@
-import type { Schema } from "./types.js";
+import type { SchemaLike } from "./types.js";
+
+export type MaybePromise<T> = T | PromiseLike<T>;
+
+export type PartialRecord<K extends PropertyKey = PropertyKey, T = unknown> = Partial<Record<K, T>>;
+
+export type ExtractKeys<T extends object, U> = {
+    [K in keyof T]: T[K] extends U ? K : never;
+}[keyof T];
+
+export type ExcludeKeys<T extends object, U> = {
+    [K in keyof T]: T[K] extends U ? never : K;
+}[keyof T];
 
 const identRegex = /^[\p{XID_Start}$_]\p{XID_Continue}*$/u;
 
@@ -7,6 +19,7 @@ export function isIdent(name: string | number) {
     if (!identRegex.test(name)) return false;
 
     try {
+        // eslint-disable-next-line @typescript-eslint/no-implied-eval
         new Function(name, "");
     } catch {
         return false;
@@ -15,22 +28,26 @@ export function isIdent(name: string | number) {
     return true;
 }
 
-export function isObject(o: unknown): o is Record<keyof any, unknown> {
-    return o != null && typeof o === "object";
+export function isObject(value: unknown): value is object {
+    return value != null && typeof value === "object";
 }
 
-export function isUnsignedSize(n: unknown): n is number {
-    return n === Number(n) >>> 0;
+export function isRecord(value: unknown): value is PartialRecord<PropertyKey, unknown> {
+    return value != null && typeof value === "object";
 }
 
-export function isSchema(value: unknown): value is Schema {
-    return isObject(value) && typeof value.type === "string";
+export function isUnsignedSize(value: unknown): value is number {
+    return value === Number(value) >>> 0;
+}
+
+export function isSchema(value: unknown): value is SchemaLike {
+    return isObject(value) && "type" in value && typeof value.type === "string";
 }
 
 export function nullPrototype<T>(value: T): T {
-    return Object.assign(Object.create(null), value);
+    return Object.assign(Object.create(null), value) as T;
 }
 
-export function cloneCall<const TArgs, const TReturn>(fn: (...args: TArgs[]) => TReturn, ...args: TArgs[]): TReturn {
+export function cloningCall<const TArgs, const TReturn>(fn: (...args: TArgs[]) => TReturn, ...args: TArgs[]): TReturn {
     return structuredClone(fn(...structuredClone(args)));
 }

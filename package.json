@@ -1,6 +1,6 @@
 {
     "name": "@tusent.io/schema",
-    "version": "1.4.4",
+    "version": "1.5.1",
     "homepage": "https://github.com/Tusentio/schema.git#readme",
     "bugs": {
         "url": "https://github.com/Tusentio/schema.git/issues"
@@ -17,20 +17,27 @@
     "main": "./dist/index.js",
     "files": [
         "/dist",
-        "schema.json"
+        "/src"
     ],
     "scripts": {
-        "prebuild": "npm run clean",
+        "prebuild": "pnpm clean",
         "build": "tsc",
         "clean": "rimraf dist",
-        "prepack": "npm run build"
+        "preinstall": "npx only-allow pnpm",
+        "lint": "prettier --check . && eslint .",
+        "prepack": "pnpm lint && pnpm build"
     },
     "dependencies": {
-        "terser": "^5.19.2"
+        "terser": "^5.31.3"
     },
     "devDependencies": {
         "@total-typescript/ts-reset": "^0.5.1",
-        "rimraf": "^5.0.1",
-        "typescript": "latest"
+        "eslint": "^9.8.0",
+        "eslint-config-prettier": "^9.1.0",
+        "only-allow": "1.2.1",
+        "prettier": "^3.3.3",
+        "rimraf": "^6.0.1",
+        "typescript": "^5.5.4",
+        "typescript-eslint": "^8.0.1"
     }
 }

@@ -1,21 +1,19 @@
 import { isIdent } from "./utils.js";
 
-const stack: object[] = [];
-
 const rawStrings = new WeakMap<object, string>();
 
 /**
  * Creates an object that will be stringified as the given string.
  *
- * ! MAY LEAD TO REMOTE CODE EXECUTION IF USED INCORRECTLY.
+ * MAY LEAD TO REMOTE CODE EXECUTION IF USED INCORRECTLY!
  *
  * @param value A string that will be stringified as-is.
  * @returns An object that will be stringified as the given string.
  */
-export function $$$_this_might_cause_remote_code_execution_$$$(value: string): {} {
-    const o = {};
-    rawStrings.set(o, value);
-    return o;
+export function $$$_this_can_allow_remote_code_execution_$$$(value: string): {} {
+    const key = {};
+    rawStrings.set(key, value);
+    return key;
 }
 
 /**
@@ -24,18 +22,23 @@ export function $$$_this_might_cause_remote_code_execution_$$$(value: string): {
  * @param value The value to stringify.
  * @returns A JavaScript expression that evaluates to the given value.
  */
-export function stringify(value: any): string {
-    if (value == null) return `${value}`;
+function _stringify(stack: object[], value: unknown): string {
+    if (value == null) {
+        return `${value}`;
+    }
 
     switch (typeof value) {
         case "boolean":
         case "function":
-            return `${value}`;
+            return value.toString();
+
         case "bigint":
             return `${value}n`;
+
         case "string":
             return JSON.stringify(value);
-        case "number":
+
+        case "number": {
             if (Number.isNaN(value)) {
                 return "NaN";
             } else if (value === Infinity) {
@@ -43,9 +46,11 @@ export function stringify(value: any): string {
             } else if (value === -Infinity) {
                 return "-Infinity";
             } else {
-                return `${value}`;
+                return value.toString();
             }
-        case "object":
+        }
+
+        case "object": {
             if (rawStrings.has(value)) {
                 return rawStrings.get(value)!;
             }
@@ -60,18 +65,18 @@ export function stringify(value: any): string {
                 if (value instanceof RegExp) {
                     return value.toString();
                 } else if (value instanceof Date) {
-                    return `new Date(${stringify(value.toISOString())})`;
+                    return `new Date(${_stringify(stack, value.toISOString())})`;
                 } else if (value instanceof Map) {
-                    return `new Map(${stringify([...value])})`;
+                    return `new Map(${_stringify(stack, [...value])})`;
                 } else if (value instanceof Set) {
-                    return `new Set(${stringify([...value])})`;
+                    return `new Set(${_stringify(stack, [...value])})`;
                 } else if ("toJSON" in value && typeof value.toJSON === "function") {
-                    return stringify(value.toJSON());
+                    return _stringify(stack, value.toJSON());
                 } else if (Array.isArray(value)) {
-                    return `[${value.map(stringify).join(", ")}]`;
+                    return `[${value.map(_stringify.bind(null, stack)).join(", ")}]`;
                 } else {
                     return `{ ${Object.entries(value)
-                        .map(([k, v]) => `${isIdent(k) ? k : stringify(k)}: ${stringify(v)}`)
+                        .map(([k, v]) => `${isIdent(k) ? k : _stringify(stack, k)}: ${_stringify(stack, v)}`)
                         .join(", ")} }`;
                 }
             } catch {
@@ -79,9 +84,21 @@ export function stringify(value: any): string {
             } finally {
                 stack.pop();
             }
+        }
+
         default:
             return "undefined";
     }
+}
+
+/**
+ * Tries to stringify the given value as a JavaScript expression.
+ *
+ * @param value The value to stringify.
+ * @returns A JavaScript expression that evaluates to the given value.
+ */
+export function stringify(value: unknown): string {
+    return _stringify([], value);
 }
 
 export default stringify;

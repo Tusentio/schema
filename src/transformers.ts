@@ -1,10 +1,10 @@
-import type { Schema } from "./types.js";
-import { nullPrototype } from "./utils.js";
+import type { SchemaLike } from "./types.js";
+import { nullPrototype, type PartialRecord } from "./utils.js";
 
-export type Transformer = (schema: Schema) => Schema;
+export type Transformer = (schema: Readonly<SchemaLike>) => Readonly<SchemaLike>;
 
 const transformers = nullPrototype({
-    enum(schema: Schema): Schema {
+    enum(schema) {
         const { variants } = schema;
 
         if (!Array.isArray(variants)) {
@@ -20,7 +20,7 @@ const transformers = nullPrototype({
             variants: variants.map((variant) => ({ type: "const", value: variant })),
         };
     },
-});
+} satisfies PartialRecord<string, Transformer>);
 
 export function getTransformerNames(): string[] {
     return Object.keys(transformers);
@@ -29,17 +29,22 @@ export function getTransformerNames(): string[] {
 export function getTransformer(name: keyof typeof transformers): Transformer;
 export function getTransformer(name: string): Transformer | undefined;
 export function getTransformer(name: string): Transformer | undefined {
-    return (transformers as Record<string, Transformer | undefined>)[name];
+    return (transformers as PartialRecord<string, Transformer>)[name];
 }
 
 export function registerTransformer(name: string, transformer: Transformer): boolean {
-    if (name in transformers) return false;
-    if (typeof transformer !== "function") throw new TypeError("Invalid transformer.");
+    if (name in transformers) {
+        return false;
+    }
 
-    (transformers as Record<string, Transformer>)[name] = transformer;
+    if (typeof transformer !== "function") {
+        throw new TypeError("Invalid transformer.");
+    }
+
+    (transformers as PartialRecord<string, Transformer>)[name] = transformer;
     return true;
 }
 
 export function unregisterTransformer(name: string): boolean {
-    return name in transformers && delete (transformers as Record<string, Transformer>)[name];
+    return name in transformers && delete (transformers as PartialRecord<string, Transformer>)[name];
 }
