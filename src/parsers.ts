@@ -1,12 +1,12 @@
 import { index, joinPath, type Path } from "./path.js";
 import { $$$_this_can_allow_remote_code_execution_$$$, stringify } from "./stringify.js";
 import { getTransformer } from "./transformers.js";
-import type { SchemaLike } from "./types.js";
+import type { Schema, SchemaLike } from "./types.js";
 import { cloningCall, isRecord, isSchema, isUnsignedSize, nullPrototype, type PartialRecord } from "./utils.js";
 
 export type CodeGenerator = (path: Path) => string;
 
-export type Parser = (input: { schema: Readonly<SchemaLike>; parse: typeof parse }) => CodeGenerator;
+export type Parser = (input: { schema: Schema | SchemaLike; parse: typeof parse }) => CodeGenerator;
 
 const parsers = nullPrototype({
     string() {
@@ -14,6 +14,10 @@ const parsers = nullPrototype({
     },
 
     number({ schema }) {
+        if (!isSchema(schema) || schema.type !== "number") {
+            throw new TypeError("Invalid number schema.");
+        }
+
         const { allowNaN = false, finite = true } = schema;
 
         return (path) => {
@@ -28,6 +32,10 @@ const parsers = nullPrototype({
     },
 
     integer({ schema }) {
+        if (!isSchema(schema) || schema.type !== "integer") {
+            throw new TypeError("Invalid integer schema.");
+        }
+
         const { allowNaN = false } = schema;
 
         return (path) => {
@@ -41,22 +49,38 @@ const parsers = nullPrototype({
         };
     },
 
-    boolean() {
+    boolean({ schema }) {
+        if (!isSchema(schema) || schema.type !== "boolean") {
+            throw new TypeError("Invalid boolean schema.");
+        }
+
         return (path) => {
             const arg = joinPath(path);
             return `${arg} === true || ${arg} === false`;
         };
     },
 
-    null() {
+    null({ schema }) {
+        if (!isSchema(schema) || schema.type !== "null") {
+            throw new TypeError("Invalid null schema.");
+        }
+
         return (path) => `${joinPath(path)} == null`;
     },
 
-    any() {
+    any({ schema }) {
+        if (!isSchema(schema) || schema.type !== "any") {
+            throw new TypeError("Invalid any schema.");
+        }
+
         return () => "true";
     },
 
     const({ schema, parse }): CodeGenerator {
+        if (!isSchema(schema) || schema.type !== "const") {
+            throw new TypeError("Invalid const schema.");
+        }
+
         const { value } = schema;
 
         if (!("value" in schema)) {
@@ -79,6 +103,10 @@ const parsers = nullPrototype({
     },
 
     union({ schema, parse }) {
+        if (!isSchema(schema) || schema.type !== "union") {
+            throw new TypeError("Invalid union schema.");
+        }
+
         const { variants } = schema;
 
         if (!Array.isArray(variants)) {
@@ -103,6 +131,10 @@ const parsers = nullPrototype({
     },
 
     object({ schema, parse }) {
+        if (!isSchema(schema) || schema.type !== "object") {
+            throw new TypeError("Invalid object schema.");
+        }
+
         const fields = schema.fields;
         const strict = schema.strict !== false;
 
@@ -170,6 +202,10 @@ const parsers = nullPrototype({
     },
 
     tuple({ schema, parse }) {
+        if (!isSchema(schema) || schema.type !== "tuple") {
+            throw new TypeError("Invalid tuple schema.");
+        }
+
         const { items } = schema;
         if (!Array.isArray(items)) {
             throw new TypeError("Invalid tuple items.");
@@ -198,6 +234,10 @@ const parsers = nullPrototype({
     },
 
     array({ schema, parse }) {
+        if (!isSchema(schema) || schema.type !== "array") {
+            throw new TypeError("Invalid array schema.");
+        }
+
         const { item, length, minLength, maxLength } = schema;
 
         if (!isSchema(item)) {
@@ -241,8 +281,8 @@ const parsers = nullPrototype({
 } satisfies PartialRecord<string, Parser>);
 
 function resolve(
-    schema: Readonly<SchemaLike>,
-    parse: (schema: Readonly<SchemaLike>, croak?: boolean) => CodeGenerator,
+    schema: Schema | SchemaLike,
+    parse: (schema: Schema | SchemaLike, croak?: boolean) => CodeGenerator,
 ): CodeGenerator | undefined {
     schema = structuredClone(schema);
 
@@ -265,7 +305,7 @@ function resolve(
     throw new TypeError("Too many schema transformations.");
 }
 
-export function parse(schema: Readonly<SchemaLike>, croak = true): CodeGenerator {
+export function parse(schema: Schema | SchemaLike, croak = true): CodeGenerator {
     schema = structuredClone(schema);
 
     if (!isSchema(schema)) {

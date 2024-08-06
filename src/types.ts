@@ -1,6 +1,5 @@
 export interface SchemaBase<Type extends string> {
-    type: {} & Type;
-    [key: string]: unknown;
+    type: Type & {};
 }
 
 interface StringSchema extends SchemaBase<"string"> {}
@@ -25,10 +24,10 @@ interface ConstSchema extends SchemaBase<"const"> {
 }
 
 interface UnionSchema extends SchemaBase<"union"> {
-    variants: SchemaLike[];
+    variants: (Schema | SchemaLike)[];
 }
 
-type ObjectField = SchemaLike & { required?: boolean };
+type ObjectField = (Schema | SchemaLike) & { required?: boolean };
 
 interface ObjectSchema extends SchemaBase<"object"> {
     fields: Record<string, ObjectField>;
@@ -36,11 +35,11 @@ interface ObjectSchema extends SchemaBase<"object"> {
 }
 
 interface TupleSchema extends SchemaBase<"tuple"> {
-    items: SchemaLike[];
+    items: (Schema | SchemaLike)[];
 }
 
 interface ArraySchema extends SchemaBase<"array"> {
-    item: SchemaLike;
+    item: Schema | SchemaLike;
     length?: number;
     minLength?: number;
     maxLength?: number;
@@ -66,8 +65,8 @@ export type Schema<Type extends string = string> = SchemaBase<Type> &
         | EnumSchema
     );
 
-export type SchemaLike = SchemaBase<string> | Schema;
+export type SchemaLike = SchemaBase<string> & Partial<Record<string, unknown>>;
 
 export type SchemaType = Schema["type"];
 
-export type TypeOf<S extends SchemaLike> = S extends Schema ? import("./typeof.js").TypeOf<S, []> : unknown;
+export type TypeOf<S extends Schema | SchemaLike> = S extends Schema ? import("./typeof.js").TypeOf<S, []> : unknown;
