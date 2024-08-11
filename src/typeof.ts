@@ -38,7 +38,7 @@ type TypeOfEnum<S> = S extends Schema<"enum"> ? S["variants"][number] : never;
 export type TypeOf<S, D extends {}[]> = D["length"] extends 24
     ? unknown
     : S extends SchemaLike
-      ? S["type"] extends SchemaType
+      ? S["type"] extends `${infer T extends SchemaType}${"" | `::${string}`}`
           ? {
                 ["string"]: TypeOfString;
                 ["number"]: TypeOfNumber;
@@ -52,6 +52,6 @@ export type TypeOf<S, D extends {}[]> = D["length"] extends 24
                 ["tuple"]: TypeOfTuple<S, [...D, {}]>;
                 ["array"]: TypeOfArray<S, [...D, {}]>;
                 ["enum"]: TypeOfEnum<S>;
-            }[S["type"]]
+            }[T]
           : unknown
       : never;

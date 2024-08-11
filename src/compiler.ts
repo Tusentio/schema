@@ -2,7 +2,7 @@ import { minify as terser } from "terser";
 
 import * as parsers from "./parsers.js";
 import { joinPath, type Path } from "./path.js";
-import type { Schema, SchemaLike, TypeOf } from "./types.js";
+import type { SchemaLike, TypeOf } from "./types.js";
 import type { MaybePromise } from "./utils.js";
 
 export interface CompileOptions {
@@ -10,9 +10,15 @@ export interface CompileOptions {
     throwOnError?: boolean;
 }
 
-export interface ValidationError {
+export class ValidationError extends TypeError {
     expected: SchemaLike;
     at: Path;
+
+    constructor(properties: { expected: SchemaLike; at: Path }) {
+        const { expected, at } = structuredClone(properties);
+        super(`Expected ${expected.type} at ${joinPath(at)}.`, { cause: { expected, at } });
+        ({ expected: this.expected, at: this.at } = { expected, at });
+    }
 }
 
 export interface ValidatorProperties {
@@ -26,29 +32,26 @@ export type PredicateValidator<T = unknown> = ((value: unknown) => value is T) &
 
 export type Validator<T = unknown> = PredicateValidator<T> | AssertionValidator<T>;
 
-export function compile<const S extends Schema | SchemaLike>(
+export function compile<const S extends SchemaLike>(
     schema: S,
     options: CompileOptions & { minify: true; throwOnError: true },
 ): Promise<AssertionValidator<TypeOf<S>>>;
 
-export function compile<const S extends Schema | SchemaLike>(
+export function compile<const S extends SchemaLike>(
     schema: S,
     options: CompileOptions & { minify: true },
 ): Promise<PredicateValidator<TypeOf<S>>>;
 
-export function compile<const S extends Schema | SchemaLike>(
+export function compile<const S extends SchemaLike>(
     schema: S,
     options: CompileOptions & { throwOnError: true },
 ): AssertionValidator<TypeOf<S>>;
 
-export function compile<const S extends Schema | SchemaLike>(
-    schema: S,
-    options: CompileOptions,
-): PredicateValidator<TypeOf<S>>;
+export function compile<const S extends SchemaLike>(schema: S, options: CompileOptions): PredicateValidator<TypeOf<S>>;
 
-export function compile<const S extends Schema | SchemaLike>(schema: S): PredicateValidator<TypeOf<S>>;
+export function compile<const S extends SchemaLike>(schema: S): PredicateValidator<TypeOf<S>>;
 
-export function compile(schema: Schema | SchemaLike, options: CompileOptions = {}): MaybePromise<Validator> {
+export function compile(schema: SchemaLike, options: CompileOptions = {}): MaybePromise<Validator> {
     const { minify = false, throwOnError = false } = options;
 
     const source = throwOnError
@@ -74,12 +77,10 @@ export function compile(schema: Schema | SchemaLike, options: CompileOptions = {
                 return false;
             }
 
-            validate.error = reason;
+            validate.error = new ValidationError(reason);
 
             if (throwOnError) {
-                throw new TypeError(`Expected ${reason.expected.type} at ${joinPath(["root", ...reason.at])}.`, {
-                    cause: reason,
-                });
+                throw validate.error;
             } else {
                 return false;
             }

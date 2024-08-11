@@ -1,14 +1,10 @@
-import type { Schema, SchemaLike } from "./types.js";
-import { isSchema, nullPrototype, type PartialRecord } from "./utils.js";
+import type { SchemaLike } from "./types.js";
+import { nullPrototype, type PartialRecord } from "./utils.js";
 
-export type Transformer = (schema: Schema | SchemaLike) => Schema | SchemaLike;
+export type Transformer = (schema: SchemaLike) => SchemaLike;
 
 const transformers = nullPrototype({
     enum(schema) {
-        if (!isSchema(schema) || schema.type !== "enum") {
-            throw new TypeError("Invalid enum schema.");
-        }
-
         const { variants } = schema;
 
         if (!Array.isArray(variants)) {

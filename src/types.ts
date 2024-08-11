@@ -1,8 +1,4 @@
-/* eslint-disable @typescript-eslint/consistent-type-definitions */
-
-type SchemaBase<Type extends string> = {
-    type: Type & {};
-};
+type SchemaBase<Type extends string> = Record<string, unknown> & { type: Type & {} };
 
 type StringSchema = SchemaBase<"string">;
 
@@ -26,10 +22,10 @@ type ConstSchema = SchemaBase<"const"> & {
 };
 
 type UnionSchema = SchemaBase<"union"> & {
-    variants: (Schema | SchemaLike)[];
+    variants: SchemaLike[];
 };
 
-type ObjectField = (Schema | SchemaLike) & { required?: boolean };
+type ObjectField = SchemaLike & { required?: boolean };
 
 type ObjectSchema = SchemaBase<"object"> & {
     fields: Record<string, ObjectField>;
@@ -37,11 +33,11 @@ type ObjectSchema = SchemaBase<"object"> & {
 };
 
 type TupleSchema = SchemaBase<"tuple"> & {
-    items: (Schema | SchemaLike)[];
+    items: SchemaLike[];
 };
 
 type ArraySchema = SchemaBase<"array"> & {
-    item: Schema | SchemaLike;
+    item: SchemaLike;
     length?: number;
     minLength?: number;
     maxLength?: number;
@@ -67,7 +63,7 @@ export type Schema<Type extends string = string> = SchemaBase<Type> &
         | EnumSchema
     );
 
-export type SchemaLike = SchemaBase<string> & Record<string, unknown>;
+export type SchemaLike = Schema | SchemaBase<string>;
 
 export type SchemaType = Schema["type"];
 

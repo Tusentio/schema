@@ -11,12 +11,9 @@ export default [
             "@typescript-eslint/no-empty-object-type": "off",
             "@typescript-eslint/strict-boolean-expressions": "error",
         },
-    },
-    {
         languageOptions: {
             parserOptions: {
                 projectService: true,
-                extraFileExtensions: [".svelte"],
             },
         },
     },
