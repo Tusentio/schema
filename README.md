@@ -48,7 +48,7 @@ Matches any number value except positive and negative `Infinity`. By default, th
 
 ### `integer`
 
-Matches any 32-bit integer value. By default, the number is not allowed to be `NaN`. To allow `NaN` values, set the `allowNaN` option to `true`.
+Matches any integer value. By default, the number is not allowed to be `NaN`. To allow `NaN` values, set the `allowNaN` option to `true`.
 
 - `allowNaN?: boolean` - Whether to allow `NaN` values. Defaults to `false`.
 

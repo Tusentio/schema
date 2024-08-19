@@ -20,8 +20,8 @@ const parsers = nullPrototype({
             const arg = joinPath(path);
 
             const typeCheck = `typeof ${arg} === "number"`;
-            const nanCheck = allowNaN != true ? `!isNaN(${arg})` : null;
-            const finiteCheck = finite != false ? `(isNaN(${arg}) || isFinite(${arg}))` : null;
+            const nanCheck = allowNaN != true ? `!Number.isNaN(${arg})` : null;
+            const finiteCheck = finite != false ? `(Number.isNaN(${arg}) || Number.isFinite(${arg}))` : null;
 
             return [typeCheck, nanCheck, finiteCheck].filter(Boolean).join(" && ");
         };
@@ -34,8 +34,8 @@ const parsers = nullPrototype({
             const arg = joinPath(path);
 
             const typeCheck = `typeof ${arg} === "number"`;
-            const nanCheck = allowNaN != true && `!isNaN(${arg})`;
-            const integerCheck = `(isNaN(${arg}) || ${arg} === (${arg} | 0))`;
+            const nanCheck = allowNaN != true && `!Number.isNaN(${arg})`;
+            const integerCheck = `(Number.isNaN(${arg}) || Number.isInteger(${arg}))`;
 
             return [typeCheck, nanCheck, integerCheck].filter(Boolean).join(" && ");
         };
