@@ -10,14 +10,21 @@ export interface CompileOptions {
     throwOnError?: boolean;
 }
 
-export class ValidationError extends TypeError {
+interface ValidationErrorProperties {
     expected: SchemaLike;
     at: Path;
+    got: unknown;
+}
 
-    constructor(properties: { expected: SchemaLike; at: Path }) {
-        const { expected, at } = structuredClone(properties);
-        super(`Expected ${expected.type} at ${joinPath(at)}.`, { cause: { expected, at } });
-        ({ expected: this.expected, at: this.at } = { expected, at });
+export class ValidationError extends TypeError implements ValidationErrorProperties {
+    expected!: SchemaLike;
+    at!: Path;
+    got!: unknown;
+
+    constructor(properties: ValidationErrorProperties) {
+        const { expected, at } = properties;
+        super(`Expected ${expected.type} at ${joinPath(at, false)}.`, { cause: { expected, at } });
+        Object.assign(this, properties);
     }
 }
 
@@ -59,7 +66,7 @@ export function compile(schema: SchemaLike, options: CompileOptions = {}): Maybe
         : `(root, croak) => ${parsers.parse(schema)(["root"])};`;
 
     const pack = (source: string) => {
-        const fn = eval(source) as (value: unknown, croak: (reason: ValidationError) => boolean) => boolean;
+        const fn = eval(source) as (value: unknown, croak: (reason: ValidationErrorProperties) => boolean) => boolean;
 
         const validate = Object.assign(
             (value: unknown) => {
@@ -72,7 +79,7 @@ export function compile(schema: SchemaLike, options: CompileOptions = {}): Maybe
             },
         );
 
-        const croak = (reason: ValidationError) => {
+        const croak = (reason: ValidationErrorProperties) => {
             if (validate.error != null) {
                 return false;
             }

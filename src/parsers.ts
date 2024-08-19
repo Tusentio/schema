@@ -1,4 +1,4 @@
-import { index, joinPath, type Path } from "./path.js";
+import { index, joinPath, resolveRuntimePath, type Path } from "./path.js";
 import { $$$_this_can_allow_remote_code_execution_$$$, stringify } from "./stringify.js";
 import { getTransformer } from "./transformers.js";
 import type { SchemaLike } from "./types.js";
@@ -170,7 +170,9 @@ const parsers = nullPrototype({
     },
 
     tuple({ schema, parse }) {
-        const { items } = schema;
+        let { items } = schema;
+        items ??= schema.item;
+
         if (!Array.isArray(items)) {
             throw new TypeError("Invalid tuple items.");
         }
@@ -198,7 +200,10 @@ const parsers = nullPrototype({
     },
 
     array({ schema, parse }) {
-        const { item, length, minLength, maxLength } = schema;
+        const { length, minLength, maxLength } = schema;
+
+        let { item } = schema;
+        item ??= schema.items;
 
         if (!isSchema(item)) {
             throw new TypeError(`Invalid item schema: ${stringify(item)}.`);
@@ -283,9 +288,9 @@ export function parse(schema: SchemaLike, croak = true): CodeGenerator {
         }
 
         if (croak) {
-            return `(${generator(path)} || croak(${stringify({
+            return `((${generator(path)}) || croak(${stringify({
                 expected: schema,
-                at: path.slice(1),
+                at: resolveRuntimePath(path.slice(1)),
                 got: $$$_this_can_allow_remote_code_execution_$$$(joinPath(path)),
             })}))`;
         } else {
