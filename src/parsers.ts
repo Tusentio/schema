@@ -147,7 +147,7 @@ const parsers = nullPrototype({
                 requiredKeys.length > 0 ? requiredKeys.map((key) => `${stringify(key)} in ${arg}`).join(" && ") : null;
 
             const extraFieldsCheck =
-                !checkKeys && keys.length > 0
+                strict && !checkKeys && keys.length > 0
                     ? `Object.keys(${arg}).every((key) => ${keys
                           .map((key) => `key === ${stringify(key)}`)
                           .join(" || ")})`
